@@ -1,0 +1,226 @@
+#include <list>
+#include <vector>
+#include <string.h>
+#include <pthread.h>
+#include <cstring>
+#include <jni.h>
+#include <unistd.h>
+#include <fstream>
+#include <iostream>
+#include <dlfcn.h>
+#include "Includes/Logger.h"
+#include "Includes/obfuscate.h"
+#include "Includes/Utils.h"
+
+#include "KittyMemory/MemoryPatch.h"
+#include "Menu.h"
+
+
+#define targetLibName OBFUSCATE("libil2cpp.so")
+
+#include "Includes/Macros.h"
+
+
+struct My_Patches {
+   
+    MemoryPatch CoinDouble, Unlimited, Follow;
+    
+} hexPatches;
+
+bool feature1, feature2, feature3, feature4, feature5, feature6, feature7;
+
+int MinSpeed = 10;
+int MaxSpeed = 1;
+
+float (*old_MinSpeed)(void *instance);
+float getMinSpeed(void *instance) {
+    if (instance != NULL && MinSpeed > 10) {
+        return (float) MinSpeed;
+    }
+    return old_MinSpeed(instance);
+}
+
+float (*old_MaxSpeed)(void *instance);
+float getMaxSpeed(void *instance) {
+    if (instance != NULL && MaxSpeed > 1) {
+        return (float) MaxSpeed;
+    }
+    return old_MaxSpeed(instance);
+}
+
+int JumpHeight = 1;
+int AirJumpHeight = 1;
+
+float (*old_JumpHeight)(void *instance);
+float getJumpHeight(void *instance) {
+    if (instance != NULL && JumpHeight > 1) {
+        return (float) JumpHeight;
+    }
+    return old_JumpHeight(instance);
+}
+
+float (*old_AirJumpHeight)(void *instance);
+float getAirJumpHeight(void *instance) {
+    if (instance != NULL && AirJumpHeight > 1) {
+        return (float) AirJumpHeight;
+    }
+    return old_AirJumpHeight(instance);
+}
+
+int BaseMultiplierSum;
+
+int (*old_BaseMultiplierSum)(void *instance);
+int getBaseMultiplierSum(void *instance) {
+    if (BaseMultiplierSum) {
+        return BaseMultiplierSum;
+    }
+    return old_BaseMultiplierSum(instance);
+}
+
+
+
+
+
+
+
+
+
+void *hack_thread(void *) {
+    LOGI(OBFUSCATE("pthread created"));
+
+    
+    do {
+        sleep(1);
+    } while (!isLibraryLoaded(targetLibName));
+
+   
+    
+    
+    LOGI(OBFUSCATE("%s has been loaded"), (const char *) targetLibName);
+
+#if defined(__aarch64__)
+
+#else 
+
+hexPatches.CoinDouble = MemoryPatch::createWithHex("libil2cpp.so",0xCEC474,"12 07 A0 E3 1E FF 2F E1");
+hexPatches.Unlimited = MemoryPatch::createWithHex("libil2cpp.so",0xD1D830," E7 03 00 E3 1E FF 2F E1");
+hexPatches.Follow = MemoryPatch::createWithHex("libil2cpp.so",0xBBCA30,"01 00 A0 E3 1E FF 2F E1");
+
+MSHookFunction((void *)getAbsoluteAddress("libil2cpp.so", 0xACF36C), (void *) getMinSpeed, (void **) &old_MinSpeed);
+MSHookFunction((void *)getAbsoluteAddress("libil2cpp.so", 0xAD2DC4), (void *) getMaxSpeed, (void **) &old_MaxSpeed);
+MSHookFunction((void *)getAbsoluteAddress("libil2cpp.so", 0xACDAA8), (void *) getJumpHeight, (void **) &old_JumpHeight);
+MSHookFunction((void *)getAbsoluteAddress("libil2cpp.so", 0xA95840), (void *) getBaseMultiplierSum, (void **) &old_BaseMultiplierSum); 
+MSHookFunction((void *)getAbsoluteAddress("libil2cpp.so", 0xACDE14), (void *) getAirJumpHeight, (void **) &old_AirJumpHeight);
+
+
+
+    LOGI(OBFUSCATE("Done"));
+#endif
+
+    return NULL;
+}
+
+
+extern "C" {
+
+
+JNIEXPORT jobjectArray
+JNICALL
+Java_uk_lgl_modmenu_FloatingModMenuService_getFeatureList(JNIEnv *env, jobject context) {
+    jobjectArray ret;
+
+
+    MakeToast(env, context, OBFUSCATE("Modded by PROMODS"), Toast::LENGTH_LONG);
+
+    const char *features[] = {
+            OBFUSCATE("Category_SUBWAY SURFS"), //Not counted
+            OBFUSCATE("0_Toggle_CoinDoubler"),
+			OBFUSCATE("1_Toggle_Unlimited Everything"),
+			OBFUSCATE("2_Toggle_Follow Camera"),
+			OBFUSCATE("3_SeekBar_Air Jump Height_0_100"),
+			OBFUSCATE("4_SeekBar_Speed_0_100"),
+			OBFUSCATE("5_SeekBar_Jump Height_0_100"),
+			OBFUSCATE("6_InputValue_1000_MultiplierSum"), //Max value
+			OBFUSCATE("Category_CRADIT THIS"),
+			OBFUSCATE("ButtonLink_PRO MODS_https://youtube.com/@PROMODS905"), //Not counted
+		    OBFUSCATE("ButtonLink_rafsan zami_https://youtube.com/@hackerrafsanzami4224"), //Not counted
+			OBFUSCATE("ButtonLink_HUSNI MODS_https://youtube.com/@husnimods"),//Not counted
+            
+    };
+
+  
+    int Total_Feature = (sizeof features / sizeof features[0]);
+    ret = (jobjectArray)
+            env->NewObjectArray(Total_Feature, env->FindClass(OBFUSCATE("java/lang/String")),
+                                env->NewStringUTF(""));
+
+    for (int i = 0; i < Total_Feature; i++)
+        env->SetObjectArrayElement(ret, i, env->NewStringUTF(features[i]));
+
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, antiLeech, NULL);
+
+    return (ret);
+}
+
+JNIEXPORT void JNICALL
+Java_uk_lgl_modmenu_Preferences_Changes(JNIEnv *env, jclass clazz, jobject obj,
+                                        jint featNum, jstring featName, jint value,
+                                        jboolean boolean, jstring str) {
+
+    LOGD(OBFUSCATE("Feature name: %d - %s | Value: = %d | Bool: = %d | Text: = %s"), featNum,
+         env->GetStringUTFChars(featName, 0), value,
+         boolean, str != NULL ? env->GetStringUTFChars(str, 0) : "");
+
+
+
+    switch (featNum) {
+        case 0:
+            feature1 = boolean;
+            if (feature1) {
+                hexPatches.CoinDouble.Modify();
+            } else {
+                hexPatches.CoinDouble.Restore();
+            }
+            break;
+			case 1:
+            feature2 = boolean;
+            if (feature2) {
+                hexPatches.Unlimited.Modify();
+            } else {
+                hexPatches.Unlimited.Restore();
+            }
+            break;
+			case 2:
+            feature3 = boolean;
+            if (feature3) {
+                hexPatches.Follow.Modify();
+            } else {
+                hexPatches.Follow.Restore();
+            }
+            break;
+			case 3:
+            AirJumpHeight = value;
+            break;
+			case 4:
+            MinSpeed = value;
+			MaxSpeed = value;
+            break;
+			case 5:
+            JumpHeight = value;
+            break;
+            case 6:
+            BaseMultiplierSum = value;
+            break;
+               
+      }
+   }
+}
+
+
+__attribute__((constructor))
+void lib_main() {
+    
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, hack_thread, NULL);
+}
